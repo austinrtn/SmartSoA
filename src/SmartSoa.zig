@@ -28,12 +28,12 @@ pub fn SmartSoa(comptime StructT: type) type {
     
         pub fn ensureTotalCapacity(self: *Self, allocator: Allocator, cap: usize) !void {
             const allocated: bool = (self.cap > 0);
-            const new_cap = @max(self.cap, cap);
+            if(self.cap > cap) return;
             
             inline for(InnerFields) |field| {
                 const data = &@field(self.inner, field.name);
-                if(allocated) data.* = try allocator.realloc(data.*, new_cap)
-                    else data.* = try allocator.alloc(@FieldType(StructT, field.name), new_cap);
+                if(allocated) data.* = try allocator.realloc(data.*, cap)
+                    else data.* = try allocator.alloc(@FieldType(StructT, field.name), cap);
             }
             
             self.cap = new_cap;
