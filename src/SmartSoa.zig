@@ -36,7 +36,7 @@ pub fn SmartSoa(comptime StructT: type) type {
                     else data.* = try allocator.alloc(@FieldType(StructT, field.name), cap);
             }
             
-            self.cap = new_cap;
+            self.cap = cap;
         }
     
         pub fn append(self: *Self, allocator: Allocator, T: StructT) !void {
@@ -89,6 +89,46 @@ pub fn SmartSoa(comptime StructT: type) type {
             if(self.cap > 0) self.freeInner(allocator);
             self.len = 0; 
             self.cap = 0;
+        }
+
+        pub fn swapAndPop(self: *Self, index: usize) ?StructT {
+            if(self.len == 0) return null;
+            const last_idx: usize = self.len - 1;
+            var data: StructT = undefined;
+            
+            inline for(InnerFields) |field| {
+                const slice = @field(self.inner, field.name);
+                
+                @field(data, field.name) = slice[last_idx];
+                slice[index] = slice[last_idx];
+            }
+
+            self.len -= 1;
+            return data;
+        }
+        
+        pub fn pop(self: *Self) ?StructT {
+            if(self.len == 0) return null;
+            const index = self.len;
+            var data: StructT = undefined;
+            
+            inline for(InnerFields) |field| {
+                const slice = @field(self.inner, field.name);
+                @field(data, field.name) = slice[index];
+            }
+            
+            self.len -= 1;
+            return data;
+        }
+
+        pub fn orderedRemove(self: *Self, index: usize) void {
+            inline for(InnerFields) |field| {
+                for(index..self.len - 1) |i| {
+                    const slice = @field(self.inner, field.name);
+                    slice[i] = slice[i + 1];
+                }
+            }
+            self.len -= 1;
         }
     };
 }

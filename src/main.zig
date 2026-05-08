@@ -12,7 +12,6 @@ pub fn main(init: std.process.Init) !void {
     var stdout = std.Io.File.stdout().writer(io, &buf);
     const writer = &stdout.interface;
 
-
     var mal_timestamp: Timestamps = .init(io);
     var smart_timestamp: Timestamps = .init(io);
 
@@ -206,7 +205,7 @@ test "insert" {
 test "clear" {
     const allocator = std.testing.allocator;
     
-    var list: SmartSoa(struct{int: usize}) = try .init();
+    var list: SmartSoa(struct{int: usize}) = .init();
     defer list.deinit(allocator);
     
     try list.append(allocator, .{.int = 5});
@@ -220,6 +219,30 @@ test "clear" {
     list.clearAndFree(allocator);
     try std.testing.expectEqual(list.len, 0); 
     try std.testing.expectEqual(list.cap, 0); 
+}
+
+test "remove" {
+    const allocator = std.testing.allocator;
+    
+    var list: SmartSoa(struct{int: usize}) = .init();
+    defer list.deinit(allocator);
+
+    for(0..10) |i| {
+        try list.append(allocator, .{.int = i});
+    }
+
+    const swapped = list.swapAndPop(0);
+    try std.testing.expectEqual(swapped.?.int, 9);
+    try std.testing.expectEqual(list.len, 9);
+
+    const popped = list.pop();
+    
+    try std.testing.expectEqual(popped.?.int, 9);
+    try std.testing.expectEqual(list.len, 8);
+
+    std.debug.print("{any}\n", .{list.items(.int)});
+    list.orderedRemove(5);
+    std.debug.print("{any}\n", .{list.items(.int)});
 }
 
 const Time = struct {
@@ -238,6 +261,7 @@ const Time = struct {
         self.end_time = self.start_time.durationTo(.now(self.io, .awake)).raw.toMicroseconds();
     }
 };
+
 const Timestamps = struct {
     append: Time = .{},
     get_slices: Time = .{},
