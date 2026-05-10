@@ -10,10 +10,15 @@ pub fn SmartSoa(comptime StructT: type) type {
         const starting_capacity = 8;
         const InnerFields = std.meta.fields(Inner);
     
+        /// Number of valid elements within arrays
         len: usize = 0, 
+        /// Number of both occupied availble elements within arrays.
         capacity: usize = 0,
+        /// Contains slices of all field data.  
+        /// Not for API use.
         inner: Inner = undefined,
     
+        /// Create a new SmartSoa instance
         pub fn init() Self {
             var self = Self{};
             self.resetInner();
@@ -24,18 +29,23 @@ pub fn SmartSoa(comptime StructT: type) type {
             if (self.capacity > 0) self.freeInner(allocator);
         }
 
+        /// Free all inner fields
         fn freeInner(self: *Self, allocator: Allocator) void {
             inline for(InnerFields) |field| {
                 allocator.free(@field(self.inner, field.name));
             }
         }
 
+        /// Set all inner slices to empty
         fn resetInner(self: *Self) void {
             inline for (InnerFields) |field| {
                 @field(self.inner, field.name) = &.{};
             }
         }
     
+        ///Increases the capacity of the arrays to store more items.  
+        ///Allows for arrays to grow without allocation up to set capacity.
+        ///Will invalidate element pointers if additoinal memory is needed.
         pub fn ensureTotalCapacity(self: *Self, allocator: Allocator, capacity: usize) !void {
             const allocated = self.capacity > 0;
             if (self.capacity >= capacity) return;
@@ -49,10 +59,16 @@ pub fn SmartSoa(comptime StructT: type) type {
             self.capacity = capacity;
         }
     
+        ///Returns a slice of values for specified field.
         pub fn items(self: *Self, comptime field: std.meta.FieldEnum(Inner)) @FieldType(Inner, @tagName(field)) {
             return @field(self.inner, @tagName(field))[0..self.len];
         }
     
+        ///Returns a struct of slices for each specified field.  
+        ///For example, if you pass fields .x and .y, then 
+        ///`soa.manyItems(&.{.x, .y});`
+        /// will return a struct with field x and field y, both being slices of 
+        /// their respective type.
         pub fn manyItems(self: *Self, comptime fields: []const std.meta.FieldEnum(Inner)) GetStructOfArrays(Inner, fields){
             var t: GetStructOfArrays(Inner, fields) = undefined;
     
@@ -64,6 +80,7 @@ pub fn SmartSoa(comptime StructT: type) type {
             return t;
         }
 
+        /// Returns a copy of type T of the specified index
         pub fn get(self: *Self, index: usize) StructT {
             std.debug.assert(index < self.len);
             var T: StructT = undefined;
@@ -73,13 +90,16 @@ pub fn SmartSoa(comptime StructT: type) type {
             return T;
         }
 
+        /// Either sets the capacity to the starting capacity if capacity is 0, 
+        /// or to twice the size of the current capcity 
         fn checkCapacity(self: *Self, allocator: Allocator) !void {
             if (self.capacity == 0)
                 try self.ensureTotalCapacity(allocator, starting_capacity);
             if (self.len + 1 > self.capacity) 
                 try self.ensureTotalCapacity(allocator, self.capacity * 2);
         }
-        
+
+        /// Set the element of the specified index
         pub fn set(self: *Self, T: StructT, index: usize) void {
             std.debug.assert(index < self.len);
             inline for(InnerFields) |field| {
@@ -87,6 +107,8 @@ pub fn SmartSoa(comptime StructT: type) type {
             }
         }
 
+        /// Add an element to the end of the array.  
+        /// Will invalidate element pointers if additional memory is needed
         pub fn append(self: *Self, allocator: Allocator, T: StructT) !void {
             try self.checkCapacity(allocator); 
             
@@ -97,6 +119,8 @@ pub fn SmartSoa(comptime StructT: type) type {
             self.len += 1;
         }
 
+        /// Inserts new element at specificed index, shifting all other elements over one.  
+        /// Will invalidate element pointers if additional memory is needed.
         pub fn insert(self: *Self, allocator: Allocator, T: StructT, index: usize) !void {
             std.debug.assert(index <= self.len);
             try self.checkCapacity(allocator);
@@ -111,10 +135,12 @@ pub fn SmartSoa(comptime StructT: type) type {
             self.len += 1;
         }
 
+        /// Clears all data within arrays but keeps capacity at its current value.
         pub fn clearRetainingCapacity(self: *Self) void {
             self.len = 0; 
         }
 
+        /// Clears all data and frees all array data, setting capacity to 0.
         pub fn clearAndFree(self: *Self, allocator: Allocator) void {
             if (self.capacity > 0) {
                 self.freeInner(allocator);
@@ -124,6 +150,9 @@ pub fn SmartSoa(comptime StructT: type) type {
             self.capacity = 0;
         }
 
+        /// Removes and returns element at specified index and replaces said element with the last element in array.
+        /// Returns null if length is 0. 
+        /// Fast, but does not retain array order.
         pub fn swapAndPop(self: *Self, index: usize) ?StructT {
             if (self.len == 0) return null;
             std.debug.assert(index < self.len);
@@ -141,6 +170,7 @@ pub fn SmartSoa(comptime StructT: type) type {
             return data;
         }
         
+        /// Returns the last element within the array, or returns null if length is 0.
         pub fn pop(self: *Self) ?StructT {
             if(self.len == 0) return null;
             const index = self.len - 1;
@@ -155,6 +185,8 @@ pub fn SmartSoa(comptime StructT: type) type {
             return data;
         }
 
+        /// Removes element of specified index.
+        /// Retains the order of the array but is slower than popAndSwap.
         pub fn orderedRemove(self: *Self, index: usize) void {
             std.debug.assert(index < self.len);
             inline for(InnerFields) |field| {
@@ -166,6 +198,8 @@ pub fn SmartSoa(comptime StructT: type) type {
             self.len -= 1;
         }
 
+        ///Removes elements of `from_idx` and `to_idx` and all elements inbetween 
+        /// specified indexes
         pub fn orderedRemoveMany(self: *Self, from_idx: usize, to_idx: usize) void {
             std.debug.assert(from_idx <= to_idx);
             std.debug.assert(to_idx < self.len);

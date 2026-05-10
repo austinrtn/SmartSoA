@@ -59,7 +59,6 @@ pub fn main(init: std.process.Init) !void {
     try writer.writeAll("Particles generated, Testing MultiArraylist\n");
     try writer.writeAll("Appending Particles...\n");
     try writer.flush();
-    
     mal_timestamp.append.start();
     
     try mal_list.ensureTotalCapacity(allocator, P_Count);
@@ -74,10 +73,11 @@ pub fn main(init: std.process.Init) !void {
     
     mal_timestamp.get_slices.start();
     
-    const xs = mal_list.items(.x);
-    const ys = mal_list.items(.y);
-    const x_vels = mal_list.items(.x_vel);
-    const y_vels = mal_list.items(.y_vel);
+    const mal_slice = mal_list.slice();
+    const xs = mal_slice.items(.x);
+    const ys = mal_slice.items(.y);
+    const x_vels = mal_slice.items(.x_vel);
+    const y_vels = mal_slice.items(.y_vel);
 
     mal_timestamp.get_slices.end();
 
