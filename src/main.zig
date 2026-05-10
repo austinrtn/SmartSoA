@@ -182,7 +182,7 @@ test "many_appends" {
     try std.testing.expectEqual(list.len, point_count);
 }
 
-test "insert" {
+test "set" {
     const allocator = std.testing.allocator;
     
     var list = SmartSoa(struct{int: usize}).init();
@@ -193,13 +193,32 @@ test "insert" {
     }
 
     for(5..10) |i| {
-        list.insert(.{.int = i}, i - 5);
+        list.set(.{.int = i}, i - 5);
     }
 
     for(0..5) |i| {
         const T = list.get(i);
         try std.testing.expectEqual(i + 5, T.int);
     }
+}
+
+test "insert" {
+    const allocator = std.testing.allocator;
+    
+    var list = SmartSoa(struct{int: usize}).init();
+    defer list.deinit(allocator);
+
+    for(0..5) |i| {
+        try list.append(allocator, .{.int = i});
+    }
+
+    const new_int: @TypeOf(list).Child = .{.int =69};
+    try list.insert(allocator, new_int, 3);
+
+    const ints = list.items(.int);
+    
+    try std.testing.expectEqual(list.len, 6);
+    try std.testing.expectEqual(ints[3], 69);
 }
 
 test "clear" {
@@ -210,18 +229,18 @@ test "clear" {
     
     try list.append(allocator, .{.int = 5});
     try std.testing.expectEqual(list.len, 1); 
-    try std.testing.expect(list.cap > 0); 
+    try std.testing.expect(list.capacity > 0); 
 
     list.clearRetainingCapacity();
     try std.testing.expectEqual(list.len, 0); 
-    try std.testing.expect(list.cap > 0); 
+    try std.testing.expect(list.capacity > 0); 
     
     list.clearAndFree(allocator);
     try std.testing.expectEqual(list.len, 0); 
-    try std.testing.expectEqual(list.cap, 0); 
+    try std.testing.expectEqual(list.capacity, 0); 
 }
 
-test "remove" {
+test "pop_remove" {
     const allocator = std.testing.allocator;
     
     var list: SmartSoa(struct{int: usize}) = .init();
@@ -232,17 +251,58 @@ test "remove" {
     }
 
     const swapped = list.swapAndPop(0);
-    try std.testing.expectEqual(swapped.?.int, 9);
+    try std.testing.expectEqual(swapped.?.int, 0);
     try std.testing.expectEqual(list.len, 9);
 
     const popped = list.pop();
     
-    try std.testing.expectEqual(popped.?.int, 9);
+    try std.testing.expectEqual(popped.?.int, 8);
     try std.testing.expectEqual(list.len, 8);
+}
 
-    std.debug.print("{any}\n", .{list.items(.int)});
-    list.orderedRemove(5);
-    std.debug.print("{any}\n", .{list.items(.int)});
+test "orderedRemove" {
+    const allocator = std.testing.allocator;
+    
+    var list: SmartSoa(struct{int: usize}) = .init();
+    defer list.deinit(allocator);
+
+    for(0..5) |i| {
+        try list.append(allocator, .{.int = i});
+    }
+
+    var ints = list.items(.int);
+    
+    try std.testing.expectEqual(5, list.len);
+    try std.testing.expectEqual(ints[3], 3);
+    
+    list.orderedRemove(3);
+    ints = list.items(.int);
+    
+    try std.testing.expectEqual(4, list.len);
+    try std.testing.expectEqual(ints[3], 4);
+}
+
+test "orderedRemoveMany" {
+    const allocator = std.testing.allocator;
+    
+    var list: SmartSoa(struct{int: usize}) = .init();
+    defer list.deinit(allocator);
+    
+    for(0..20) |i| {
+        try list.append(allocator, .{.int = i});
+    }
+    
+    var ints = list.items(.int);
+    try std.testing.expectEqual(ints.len, 20);
+    try std.testing.expectEqual(ints[10], 10);
+    try std.testing.expectEqual(ints[15], 15);
+    
+    list.orderedRemoveMany(10, 15);
+    ints = list.items(.int);
+    
+    try std.testing.expectEqual(ints.len, 14);
+    try std.testing.expectEqual(ints[10], 16);
+    try std.testing.expectEqual(ints[13], 19);
 }
 
 const Time = struct {

@@ -5,19 +5,23 @@ const Attribute = std.builtin.Type.StructField.Attributes;
 pub fn SmartSoa(comptime StructT: type) type {
     const Inner = GetInner(StructT);
     return struct {
+        pub const Child: type = StructT;
         const Self = @This();
+        const starting_capacity = 8;
         const InnerFields = std.meta.fields(Inner);
     
         len: usize = 0, 
-        cap: usize = 0,
+        capacity: usize = 0,
         inner: Inner = undefined,
     
         pub fn init() Self {
-            return Self{};
+            var self = Self{};
+            self.resetInner();
+            return self;
         }
     
         pub fn deinit(self: *Self, allocator: Allocator) void {
-            if(self.cap > 0) self.freeInner(allocator);
+            if (self.capacity > 0) self.freeInner(allocator);
         }
 
         fn freeInner(self: *Self, allocator: Allocator) void {
@@ -25,33 +29,26 @@ pub fn SmartSoa(comptime StructT: type) type {
                 allocator.free(@field(self.inner, field.name));
             }
         }
+
+        fn resetInner(self: *Self) void {
+            inline for (InnerFields) |field| {
+                @field(self.inner, field.name) = &.{};
+            }
+        }
     
-        pub fn ensureTotalCapacity(self: *Self, allocator: Allocator, cap: usize) !void {
-            const allocated: bool = (self.cap > 0);
-            if(self.cap > cap) return;
+        pub fn ensureTotalCapacity(self: *Self, allocator: Allocator, capacity: usize) !void {
+            const allocated = self.capacity > 0;
+            if (self.capacity >= capacity) return;
             
             inline for(InnerFields) |field| {
                 const data = &@field(self.inner, field.name);
-                if(allocated) data.* = try allocator.realloc(data.*, cap)
-                    else data.* = try allocator.alloc(@FieldType(StructT, field.name), cap);
+                if (allocated) data.* = try allocator.realloc(data.*, capacity)
+                else data.* = try allocator.alloc(@FieldType(StructT, field.name), capacity);
             }
             
-            self.cap = cap;
+            self.capacity = capacity;
         }
     
-        pub fn append(self: *Self, allocator: Allocator, T: StructT) !void {
-            if(self.cap == 0)
-                try self.ensureTotalCapacity(allocator, 1);
-            if(self.len + 1 > self.cap) 
-                try self.ensureTotalCapacity(allocator, self.cap * 2);
-                
-            inline for(InnerFields) |field| {
-                @field(self.inner, field.name)[self.len] = @field(T, field.name);
-            }
-    
-            self.len += 1;
-        }
-
         pub fn items(self: *Self, comptime field: std.meta.FieldEnum(Inner)) @FieldType(Inner, @tagName(field)) {
             return @field(self.inner, @tagName(field))[0..self.len];
         }
@@ -68,6 +65,7 @@ pub fn SmartSoa(comptime StructT: type) type {
         }
 
         pub fn get(self: *Self, index: usize) StructT {
+            std.debug.assert(index < self.len);
             var T: StructT = undefined;
             inline for(InnerFields) |field| {
                 @field(T, field.name) = @field(self.inner, field.name)[index];
@@ -75,31 +73,67 @@ pub fn SmartSoa(comptime StructT: type) type {
             return T;
         }
 
-        pub fn insert(self: *Self, T: StructT, index: usize) void {
+        fn checkCapacity(self: *Self, allocator: Allocator) !void {
+            if (self.capacity == 0)
+                try self.ensureTotalCapacity(allocator, starting_capacity);
+            if (self.len + 1 > self.capacity) 
+                try self.ensureTotalCapacity(allocator, self.capacity * 2);
+        }
+        
+        pub fn set(self: *Self, T: StructT, index: usize) void {
+            std.debug.assert(index < self.len);
             inline for(InnerFields) |field| {
                 @field(self.inner, field.name)[index] = @field(T, field.name);
             }
         }
 
+        pub fn append(self: *Self, allocator: Allocator, T: StructT) !void {
+            try self.checkCapacity(allocator); 
+            
+            inline for(InnerFields) |field| {
+                @field(self.inner, field.name)[self.len] = @field(T, field.name);
+            }
+    
+            self.len += 1;
+        }
+
+        pub fn insert(self: *Self, allocator: Allocator, T: StructT, index: usize) !void {
+            std.debug.assert(index <= self.len);
+            try self.checkCapacity(allocator);
+            inline for(InnerFields) |field| {
+                const slice = @field(self.inner, field.name);
+                var i: usize = self.len;
+                
+                while(i > index) : (i -= 1) slice[i] = slice[i - 1];
+                slice[index] = @field(T, field.name);
+            }
+
+            self.len += 1;
+        }
+
         pub fn clearRetainingCapacity(self: *Self) void {
-           self.len = 0; 
+            self.len = 0; 
         }
 
         pub fn clearAndFree(self: *Self, allocator: Allocator) void {
-            if(self.cap > 0) self.freeInner(allocator);
+            if (self.capacity > 0) {
+                self.freeInner(allocator);
+                self.resetInner();
+            }
             self.len = 0; 
-            self.cap = 0;
+            self.capacity = 0;
         }
 
         pub fn swapAndPop(self: *Self, index: usize) ?StructT {
-            if(self.len == 0) return null;
+            if (self.len == 0) return null;
+            std.debug.assert(index < self.len);
             const last_idx: usize = self.len - 1;
             var data: StructT = undefined;
             
             inline for(InnerFields) |field| {
                 const slice = @field(self.inner, field.name);
                 
-                @field(data, field.name) = slice[last_idx];
+                @field(data, field.name) = slice[index];
                 slice[index] = slice[last_idx];
             }
 
@@ -109,7 +143,7 @@ pub fn SmartSoa(comptime StructT: type) type {
         
         pub fn pop(self: *Self) ?StructT {
             if(self.len == 0) return null;
-            const index = self.len;
+            const index = self.len - 1;
             var data: StructT = undefined;
             
             inline for(InnerFields) |field| {
@@ -122,15 +156,34 @@ pub fn SmartSoa(comptime StructT: type) type {
         }
 
         pub fn orderedRemove(self: *Self, index: usize) void {
+            std.debug.assert(index < self.len);
             inline for(InnerFields) |field| {
+                const slice = @field(self.inner, field.name);
                 for(index..self.len - 1) |i| {
-                    const slice = @field(self.inner, field.name);
                     slice[i] = slice[i + 1];
                 }
             }
             self.len -= 1;
         }
-    };
+
+        pub fn orderedRemoveMany(self: *Self, from_idx: usize, to_idx: usize) void {
+            std.debug.assert(from_idx <= to_idx);
+            std.debug.assert(to_idx < self.len);
+            const len_removed = to_idx - from_idx + 1;
+           
+            inline for(InnerFields) |field| {
+                const slice = @field(self.inner, field.name);
+                var idx_to_write: usize = from_idx;
+                
+                for(to_idx + 1..self.len) |idx_to_copy| {
+                    slice[idx_to_write] = slice[idx_to_copy];
+                    idx_to_write += 1;
+                }
+            }
+    
+            self.len -= len_removed;
+            }
+        };
 }
 
 fn GetInner(comptime T: type) type {
