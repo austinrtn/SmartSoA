@@ -19,11 +19,11 @@ pub fn main(init: std.process.Init) !void {
     const frame_count = 10_000;
     const max_x = 100_000.0;
     const max_y = 100_000.0;
-    const max_vel = 100; 
-    
+    const max_vel = 100;
+
     const Particle = struct {
         x: f32,
-        y: f32, 
+        y: f32,
         x_vel: f32,
         y_vel: f32,
     };
@@ -35,7 +35,7 @@ pub fn main(init: std.process.Init) !void {
 
     const src = std.Random.IoSource{.io = io};
     const rand = src.interface();
-    
+
     for(base_particles) |*p| {
         p.* = .{
             .x = rand.float(f32) * max_x,
@@ -60,19 +60,19 @@ pub fn main(init: std.process.Init) !void {
     try writer.writeAll("Appending Particles...\n");
     try writer.flush();
     mal_timestamp.append.start();
-    
+
     try mal_list.ensureTotalCapacity(allocator, P_Count);
     for(mal_particles) |p| {
         try mal_list.append(allocator, p);
     }
-    
+
     mal_timestamp.append.end();
 
     try writer.writeAll("Getting Slices...\n");
     try writer.flush();
-    
+
     mal_timestamp.get_slices.start();
-    
+
     const mal_slice = mal_list.slice();
     const xs = mal_slice.items(.x);
     const ys = mal_slice.items(.y);
@@ -92,7 +92,7 @@ pub fn main(init: std.process.Init) !void {
         }
     }
     mal_timestamp.manipulate.end();
-    
+
     try writer.writeAll("\nTesting SmartSoa...\n");
     try writer.writeAll("Appending Particles...\n");
     try writer.flush();
@@ -147,8 +147,8 @@ test "items" {
     var list = SmartSoa(Point).init();
     defer list.deinit(allocator);
 
-    const point: Point = .{.x = 1.5, .y = 0}; 
-    
+    const point: Point = .{.x = 1.5, .y = 0};
+
     try list.append(allocator, point);
     const items = list.manyItems(&.{.x, .y});
 
@@ -163,13 +163,30 @@ test "items" {
     }
 }
 
+test "allItems" {
+    const allocator = std.testing.allocator;
+
+    var list = SmartSoa(struct{int: usize, str: []const u8}).init();
+    defer list.deinit(allocator);
+
+    for(0..10) |i| {
+        try list.append(allocator, .{.int = i, .str = "hello"});
+    }
+
+    const items = list.allItems();
+    for(items.int, items.str, 0..) |int, str, i| {
+        try std.testing.expectEqual(int, i);
+        try std.testing.expectEqual(str, "hello");
+    }
+}
+
 test "many_appends" {
     const point_count = 1_000_000;
     const allocator = std.testing.allocator;
 
     var prng = std.Random.DefaultPrng.init(@intCast(std.testing.random_seed));
     const random = prng.random();
-    
+
     var list = SmartSoa(Point).init();
     defer list.deinit(allocator);
 
@@ -184,7 +201,7 @@ test "many_appends" {
 
 test "set" {
     const allocator = std.testing.allocator;
-    
+
     var list = SmartSoa(struct{int: usize}).init();
     defer list.deinit(allocator);
 
@@ -204,7 +221,7 @@ test "set" {
 
 test "insert" {
     const allocator = std.testing.allocator;
-    
+
     var list = SmartSoa(struct{int: usize}).init();
     defer list.deinit(allocator);
 
@@ -216,33 +233,33 @@ test "insert" {
     try list.insert(allocator, new_int, 3);
 
     const ints = list.items(.int);
-    
+
     try std.testing.expectEqual(list.len, 6);
     try std.testing.expectEqual(ints[3], 69);
 }
 
 test "clear" {
     const allocator = std.testing.allocator;
-    
+
     var list: SmartSoa(struct{int: usize}) = .init();
     defer list.deinit(allocator);
-    
+
     try list.append(allocator, .{.int = 5});
-    try std.testing.expectEqual(list.len, 1); 
-    try std.testing.expect(list.capacity > 0); 
+    try std.testing.expectEqual(list.len, 1);
+    try std.testing.expect(list.capacity > 0);
 
     list.clearRetainingCapacity();
-    try std.testing.expectEqual(list.len, 0); 
-    try std.testing.expect(list.capacity > 0); 
-    
+    try std.testing.expectEqual(list.len, 0);
+    try std.testing.expect(list.capacity > 0);
+
     list.clearAndFree(allocator);
-    try std.testing.expectEqual(list.len, 0); 
-    try std.testing.expectEqual(list.capacity, 0); 
+    try std.testing.expectEqual(list.len, 0);
+    try std.testing.expectEqual(list.capacity, 0);
 }
 
 test "pop_remove" {
     const allocator = std.testing.allocator;
-    
+
     var list: SmartSoa(struct{int: usize}) = .init();
     defer list.deinit(allocator);
 
@@ -255,14 +272,14 @@ test "pop_remove" {
     try std.testing.expectEqual(list.len, 9);
 
     const popped = list.pop();
-    
+
     try std.testing.expectEqual(popped.?.int, 8);
     try std.testing.expectEqual(list.len, 8);
 }
 
 test "orderedRemove" {
     const allocator = std.testing.allocator;
-    
+
     var list: SmartSoa(struct{int: usize}) = .init();
     defer list.deinit(allocator);
 
@@ -271,35 +288,35 @@ test "orderedRemove" {
     }
 
     var ints = list.items(.int);
-    
+
     try std.testing.expectEqual(5, list.len);
     try std.testing.expectEqual(ints[3], 3);
-    
+
     list.orderedRemove(3);
     ints = list.items(.int);
-    
+
     try std.testing.expectEqual(4, list.len);
     try std.testing.expectEqual(ints[3], 4);
 }
 
 test "orderedRemoveMany" {
     const allocator = std.testing.allocator;
-    
+
     var list: SmartSoa(struct{int: usize}) = .init();
     defer list.deinit(allocator);
-    
+
     for(0..20) |i| {
         try list.append(allocator, .{.int = i});
     }
-    
+
     var ints = list.items(.int);
     try std.testing.expectEqual(ints.len, 20);
     try std.testing.expectEqual(ints[10], 10);
     try std.testing.expectEqual(ints[15], 15);
-    
+
     list.orderedRemoveMany(10, 15);
     ints = list.items(.int);
-    
+
     try std.testing.expectEqual(ints.len, 14);
     try std.testing.expectEqual(ints[10], 16);
     try std.testing.expectEqual(ints[13], 19);
@@ -310,9 +327,9 @@ const Time = struct {
     const Timestamp = std.Io.Clock.Timestamp;
 
     io: std.Io = undefined,
-    start_time: Timestamp = undefined, 
+    start_time: Timestamp = undefined,
     end_time: i64 = 0,
-    
+
     fn start(self: *Self) void {
         self.start_time = .now(self.io, .awake);
     }
@@ -333,7 +350,7 @@ const Timestamps = struct {
             const time = &@field(ts, field.name);
             time.io = io;
         }
-        
+
         return ts;
     }
 };
