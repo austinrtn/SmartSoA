@@ -8,8 +8,8 @@ SmartSoa is a library that allows user to create and manipulate a **Struct-of-Ar
 const Particle = struct {
 	x: f32, 
 	y: f32, 
-	x_vel: f32, 
-	y_vel: f32,
+	xvel: f32, 
+	yvel: f32,
 	r: f32, 
 	color: Color 
 }
@@ -24,10 +24,10 @@ const s = list.slice();
 
 // Then everytime we want to use the fields within the slice, we need to call items (also ewe)
 // Let's move the particles
-for(s.items(.x), s.items(.y), s.items(.x_vel), s.items(.y_vel)) 
-	|*x, *y, x_vel, y_vel| {
-	x.* += x_vel;
-	y.* += y_vel;
+for(s.items(.x), s.items(.y), s.items(.xvel), s.items(.yvel)) 
+	|*x, *y, xvel, yvel| {
+	x.* += xvel;
+	y.* += yvel;
 }
 
 // Now let's draw the particles.  Again, we need to call .items for each field
@@ -41,22 +41,18 @@ for(s.items(.x), s.items(.y), s.items(.r), s.items.color) |x, y, r, color| {
 var soa = SmartSoA(Particle); 
 defer soa.deinit(allocator);
 
-// No need to call slice, we can just call soa.manyItems(fields) or 
-// soa.allItems() and get the relevant data via field access. 
-// While soa.allItems() would be sufficient for this example,
-// we'll use the manyItems method do demonstrate how to use it properly
-const = soa.manyItems(&.{.x, .y,})
+// No need to call slice, we can just call soa.allItems() to
+// get the relevant data via field access. 
+const = soa.allItems();
 
-// Then everytime we want to use the fields within the slice, we need to call items (also ewe)
 // Let's move the particles
-for(s.items(.x), s.items(.y), s.items(.x_vel), s.items(.y_vel)) 
-	|*x, *y, x_vel, y_vel| {
-	x.* += x_vel;
-	y.* += y_vel;
+for(soa.x, soa.y, soa.xvel, soa.yvel) |*x, *y, xvel, yvel| {
+	x.* += xvel;
+	y.* += yvel;
 }
 
-// Now let's draw the particles.  Again, we need to call .items for each field
-for(s.items(.x), s.items(.y), s.items(.r), s.items.color) |x, y, r, color| {
+// Now let's draw the particles.
+for(soa.x, soa.y, soa.r, soa.color) |x, y, r, color| {
 	drawCircle(x, y, r, color);
 }
 ```
