@@ -2,4 +2,4 @@
 const std = @import("std");
 const Io = std.Io;
 
-pub const SmartSoa = @import("SmartSoa.zig").SmartSoa;
+pub const SmartSoA = @import("SmartSoA.zig").SmartSoA;

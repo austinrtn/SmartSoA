@@ -1,8 +1,21 @@
 const std = @import("std");
 const Io = std.Io;
-const SmartSoa = @import("SmartSoa.zig").SmartSoa;
-
+const SmartSoA = @import("SmartSoA.zig").SmartSoA;
 const Point = struct {x: f32, y: f32};
+
+/// A performance test between the SmartSoa
+/// data structure and Zig's own std.Multiarraylist.
+/// Whats being measured:
+/// - Time spent appending data to data structures,
+/// - Time spent getting data from data structures
+/// - Time spent looping through and manipulating data from data structures
+///
+/// Results:
+///   The test consistently showed a negilible but measurable
+///   difference between both the time spent appending and
+///   time spent manipuluating data, with a slight edge to
+///   the MultiArraylist when appending data, but a slight edge
+///   to the SmartSoA when manipulating data through the hot-loop.
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
@@ -53,7 +66,7 @@ pub fn main(init: std.process.Init) !void {
     var mal_list: std.MultiArrayList(Particle) = .empty;
     defer mal_list.deinit(allocator);
 
-    var smart_list: SmartSoa(Particle) = .init();
+    var smart_list: SmartSoA(Particle) = .init();
     defer smart_list.deinit(allocator);
 
     try writer.writeAll("Particles generated, Testing MultiArraylist\n");
@@ -93,7 +106,7 @@ pub fn main(init: std.process.Init) !void {
     }
     mal_timestamp.manipulate.end();
 
-    try writer.writeAll("\nTesting SmartSoa...\n");
+    try writer.writeAll("\nTesting SmartSoA...\n");
     try writer.writeAll("Appending Particles...\n");
     try writer.flush();
 
@@ -134,8 +147,8 @@ pub fn main(init: std.process.Init) !void {
 
     try writer.writeAll("\nComparison\n");
     try printTiming(writer, "MultiArrayList", mal_timestamp);
-    try printTiming(writer, "SmartSoa", smart_timestamp);
-    try writer.writeAll("\nRatios (SmartSoa / MultiArrayList)\n");
+    try printTiming(writer, "SmartSoA", smart_timestamp);
+    try writer.writeAll("\nRatios (SmartSoA / MultiArrayList)\n");
     try printRatio(writer, "append", smart_timestamp.append.end_time, mal_timestamp.append.end_time);
     try printRatio(writer, "get slices", smart_timestamp.get_slices.end_time, mal_timestamp.get_slices.end_time);
     try printRatio(writer, "manipulate", smart_timestamp.manipulate.end_time, mal_timestamp.manipulate.end_time);
@@ -144,7 +157,7 @@ pub fn main(init: std.process.Init) !void {
 
 test "items" {
     const allocator = std.testing.allocator;
-    var list = SmartSoa(Point).init();
+    var list = SmartSoA(Point).init();
     defer list.deinit(allocator);
 
     const point: Point = .{.x = 1.5, .y = 0};
@@ -166,7 +179,7 @@ test "items" {
 test "allItems" {
     const allocator = std.testing.allocator;
 
-    var list = SmartSoa(struct{int: usize, str: []const u8}).init();
+    var list = SmartSoA(struct{int: usize, str: []const u8}).init();
     defer list.deinit(allocator);
 
     for(0..10) |i| {
@@ -187,7 +200,7 @@ test "many_appends" {
     var prng = std.Random.DefaultPrng.init(@intCast(std.testing.random_seed));
     const random = prng.random();
 
-    var list = SmartSoa(Point).init();
+    var list = SmartSoA(Point).init();
     defer list.deinit(allocator);
 
     for(0..point_count) |_| {
@@ -202,7 +215,7 @@ test "many_appends" {
 test "set" {
     const allocator = std.testing.allocator;
 
-    var list = SmartSoa(struct{int: usize}).init();
+    var list = SmartSoA(struct{int: usize}).init();
     defer list.deinit(allocator);
 
     for(0..5) |i| {
@@ -222,7 +235,7 @@ test "set" {
 test "insert" {
     const allocator = std.testing.allocator;
 
-    var list = SmartSoa(struct{int: usize}).init();
+    var list = SmartSoA(struct{int: usize}).init();
     defer list.deinit(allocator);
 
     for(0..5) |i| {
@@ -241,7 +254,7 @@ test "insert" {
 test "clear" {
     const allocator = std.testing.allocator;
 
-    var list: SmartSoa(struct{int: usize}) = .init();
+    var list: SmartSoA(struct{int: usize}) = .init();
     defer list.deinit(allocator);
 
     try list.append(allocator, .{.int = 5});
@@ -260,7 +273,7 @@ test "clear" {
 test "pop_remove" {
     const allocator = std.testing.allocator;
 
-    var list: SmartSoa(struct{int: usize}) = .init();
+    var list: SmartSoA(struct{int: usize}) = .init();
     defer list.deinit(allocator);
 
     for(0..10) |i| {
@@ -280,7 +293,7 @@ test "pop_remove" {
 test "orderedRemove" {
     const allocator = std.testing.allocator;
 
-    var list: SmartSoa(struct{int: usize}) = .init();
+    var list: SmartSoA(struct{int: usize}) = .init();
     defer list.deinit(allocator);
 
     for(0..5) |i| {
@@ -302,7 +315,7 @@ test "orderedRemove" {
 test "orderedRemoveMany" {
     const allocator = std.testing.allocator;
 
-    var list: SmartSoa(struct{int: usize}) = .init();
+    var list: SmartSoA(struct{int: usize}) = .init();
     defer list.deinit(allocator);
 
     for(0..20) |i| {

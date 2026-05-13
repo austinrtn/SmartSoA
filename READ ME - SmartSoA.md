@@ -1,5 +1,5 @@
 # What is SmartSoA? 
-SmartSoa is a library that allows user to create and manipulate a **Struct-of-Arrays** data container.  It is similar to Zig's `std.MultiArraylist` with one key difference: the user can retrieve multiple fields at once using the `SmartSoa.manyItems` function.  This function returns a struct that is generated using the `comptime fields` parameter.  This struct returns a slice of each specified field from the main data structure.  While there is no meaningful difference in performance between Zig's MultiArraylist and the SmartSoA data structure,  the difference in ergonomics are quiet substantial and make for a much less frustrating experience. 
+SmartSoA is a library that allows user to create and manipulate a **Struct-of-Arrays** data container.  It is similar to Zig's `std.MultiArraylist` with one key difference: the user can retrieve multiple fields at once using the `SmartSoA.manyItems` function.  This function returns a struct that is generated using the `comptime fields` parameter.  This struct returns a slice of each specified field from the main data structure.  While there is no meaningful difference in performance between Zig's MultiArraylist and the SmartSoA data structure,  the difference in ergonomics are quiet substantial and make for a much less frustrating experience. 
 # Ergonomic Examples: 
 ##### The struct we will be using : 
 ```zig
@@ -62,5 +62,14 @@ for(soa.x, soa.y, soa.xvel, soa.yvel) |*x, *y, xvel, yvel| {
 for(soa.x, soa.y, soa.r, soa.color) |x, y, r, color| {
 	drawCircle(x, y, r, color);
 }
+
+// If we wanted to get structs of the SmartSoA container
+// with specified fields, we can use the soa.manyItems instead.
+// It should be noted that there is not a significant performance 
+// difference between manyItems and allItems methods.
+
+const move_items = soa.manyItems(&.{.x, .y, .xvel, .yvel});
+const draw_items = soa.manyItems(&.{.x, .y, .r, .color});
 ```
 
+# Other Fields
