@@ -1,6 +1,6 @@
 const std = @import("std");
 const Io = std.Io;
-const SmartSoA = @import("SmartSoA.zig").SmartSoA;
+const SmartSoA = @import("SmartSoA").SmartSoA;
 const Point = struct {x: f32, y: f32};
 
 /// A performance test between the SmartSoa

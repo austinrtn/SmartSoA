@@ -1,7 +1,25 @@
 # What is SmartSoA?
 SmartSoA is a library that allows user to create and manipulate a **Struct-of-Arrays** data container.  It is similar to Zig's `std.MultiArraylist` with one key difference: the user can retrieve multiple fields at once using the `SmartSoA.allItems` or `SmartSoA.manyItems` methods.  This function returns a struct that is generated using the `comptime fields` parameter.  This struct returns a slice of each specified field from the main data structure.  While there is no meaningful difference in performance between Zig's MultiArraylist and the SmartSoA data structure,  the difference in ergonomics are quiet substantial and make for a much less frustrating experience.
-# Ergonomic Examples:
-##### The struct we will be using :
+
+# How to Install
+First run this command in your terminal:
+`zig fetch --save=smart_soa git+https://github.com/austinrtn/SmartSoA.git`
+
+Then add this code to your `build.zig` file:
+```zig
+const smart_soa = b.dependency("smart_soa", .{
+    .target = target,
+    .optimize = optimize,
+});
+
+exe.root_module.addImport("SmartSoA", smart_soa.module("SmartSoA"));
+```
+
+Finally, use the library in your project as such:
+`const SmartSoA = @import("SmartSoA").SmartSoA;`
+
+# Ergonomic Examples
+##### The struct we will be using:
 ```zig
 const Particle = struct {
 	x: f32,
