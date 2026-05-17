@@ -3,6 +3,7 @@ SmartSoA is a library that allows user to create and manipulate a **Struct-of-Ar
 
 # How to Install
 First run this command in your terminal:
+
 ```zig fetch --save=smart_soa git+https://github.com/austinrtn/SmartSoA.git```
 
 Then add this code to your `build.zig` file:
