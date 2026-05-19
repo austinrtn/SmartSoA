@@ -146,6 +146,12 @@ Removes and returns an element at a specified index and replaces it with the las
 Returns null if the SmartSoA is empty.
 Fast, but does not retain array order.
 
+##### `swapAndPopIdx`
+Removes the element at a specified index and replaces it with the last element in the array.
+Returns the removed index.
+Returns null if the SmartSoA is empty.
+Fast, but does not retain array order.
+
 ##### `pop`
 Returns the last element in the SmartSoA, or returns null if the SmartSoA is empty.
 

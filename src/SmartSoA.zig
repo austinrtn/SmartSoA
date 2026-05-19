@@ -164,19 +164,28 @@ pub fn SmartSoA(comptime StructT: type) type {
         /// Fast, but does not retain array order.
         pub fn swapAndPop(self: *Self, index: usize) ?StructT {
             if (self.len == 0) return null;
+            const data = self.get(index);
+            _ = self.swapAndPopIdx(index).?;
+            return data;
+        }
+
+        /// Removes the element at the specified index and replaces it with the last element in the array.
+        /// Returns the removed index.
+        /// Returns null if length is 0.
+        /// Fast, but does not retain array order.
+        pub fn swapAndPopIdx(self: *Self, index: usize) ?usize {
+            if (self.len == 0) return null;
             std.debug.assert(index < self.len);
             const last_idx: usize = self.len - 1;
-            var data: StructT = undefined;
 
             inline for(InnerFields) |field| {
                 const slice = @field(self.inner, field.name);
 
-                @field(data, field.name) = slice[index];
                 slice[index] = slice[last_idx];
             }
 
             self.len -= 1;
-            return data;
+            return index;
         }
 
         /// Returns the last element in the array, or returns null if length is 0.

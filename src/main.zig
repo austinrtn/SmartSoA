@@ -1,6 +1,6 @@
 const std = @import("std");
 const Io = std.Io;
-const SmartSoA = @import("SmartSoA").SmartSoA;
+const SmartSoA = @import("SmartSoA.zig").SmartSoA;
 const Point = struct {x: f32, y: f32};
 
 /// A performance test between the SmartSoa
@@ -288,6 +288,24 @@ test "pop_remove" {
 
     try std.testing.expectEqual(popped.?.int, 8);
     try std.testing.expectEqual(list.len, 8);
+}
+
+test "swapAndPopIdx" {
+    const allocator = std.testing.allocator;
+
+    var list: SmartSoA(struct{int: usize}) = .init();
+    defer list.deinit(allocator);
+
+    for(0..10) |i| {
+        try list.append(allocator, .{.int = i});
+    }
+
+    const swapped_idx = list.swapAndPopIdx(0);
+    try std.testing.expectEqual(swapped_idx.?, 0);
+    try std.testing.expectEqual(list.len, 9);
+
+    const ints = list.items(.int);
+    try std.testing.expectEqual(ints[0], 9);
 }
 
 test "orderedRemove" {
