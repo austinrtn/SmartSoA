@@ -9,7 +9,7 @@ pub fn SmartSoA(comptime StructT: type) type {
         const Self = @This();
         const starting_capacity = 8;
         const InnerFields = std.meta.fields(Inner);
-        const FieldEnums = std.meta.FieldEnum(Inner);
+        pub const InnerFieldEnum = std.meta.FieldEnum(Inner);
 
         /// Number of valid elements within the arrays.
         len: usize = 0,
@@ -61,7 +61,7 @@ pub fn SmartSoA(comptime StructT: type) type {
         }
 
         /// Returns a slice of values for the specified field.
-        pub fn items(self: *Self, comptime field: FieldEnum) @FieldType(Inner, @tagName(field)) {
+        pub fn items(self: *Self, comptime field: InnerFieldEnum) @FieldType(Inner, @tagName(field)) {
             return @field(self.inner, @tagName(field))[0..self.len];
         }
 
@@ -70,7 +70,7 @@ pub fn SmartSoA(comptime StructT: type) type {
         ///`soa.manyItems(&.{.x, .y});`
         /// will return a struct with fields x and y, both being slices of
         /// their respective type.
-        pub fn manyItems(self: *Self, comptime fields: FieldEnum)) GetStructOfArrays(Inner, fields) {
+        pub fn manyItems(self: *Self, comptime fields: []const InnerFieldEnum) GetStructOfArrays(Inner, fields) {
             var t: GetStructOfArrays(Inner, fields) = undefined;
 
             inline for(InnerFields) |field| {
