@@ -2,6 +2,35 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Attribute = std.builtin.Type.StructField.Attributes;
 
+test "setValue updates only the selected field and element" {
+    const Item = struct {
+        number: i32,
+        enabled: bool,
+    };
+    var soa = SmartSoA(Item).init();
+    defer soa.deinit(std.testing.allocator);
+
+    const original = [_]Item{
+        .{ .number = 10, .enabled = false },
+        .{ .number = 20, .enabled = false },
+        .{ .number = 30, .enabled = false },
+    };
+    for (original) |item| try soa.append(std.testing.allocator, item);
+    const capacity = soa.capacity;
+
+    try soa.setValue(.number, 1, @as(i32, 42));
+    try std.testing.expectEqualDeep(original[0], soa.get(0));
+    try std.testing.expectEqualDeep(Item{ .number = 42, .enabled = false }, soa.get(1));
+    try std.testing.expectEqualDeep(original[2], soa.get(2));
+
+    try soa.setValue(.enabled, 0, true);
+    try soa.setValue(.number, 2, @as(i32, -7));
+    try std.testing.expectEqualSlices(i32, &.{ 10, 42, -7 }, soa.items(.number));
+    try std.testing.expectEqualSlices(bool, &.{ true, false, false }, soa.items(.enabled));
+    try std.testing.expectEqual(original.len, soa.len);
+    try std.testing.expectEqual(capacity, soa.capacity);
+}
+
 pub fn SmartSoA(comptime StructT: type) type {
     const Inner = GetInner(StructT);
     return struct {
@@ -143,6 +172,18 @@ pub fn SmartSoA(comptime StructT: type) type {
             }
 
             self.len += 1;
+        }
+
+        /// Sets a single value 
+        pub fn setValue(self: *Self, comptime field: InnerFieldEnum, index: usize, val: anytype) !void {
+            const field_type = @FieldType(StructT, @tagName(field));
+            if(@TypeOf(val) != field_type)
+                @compileError("`val` must be of type" ++ @typeName(field_type));
+                
+            std.debug.assert(index < self.len);
+            
+            const slice = @field(self.inner, @tagName(field));
+            slice[index] = val;
         }
 
         /// Clears all data within arrays but keeps capacity at its current value.
